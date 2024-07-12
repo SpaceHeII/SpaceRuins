@@ -35,6 +35,8 @@ public class ControladorJugador : MonoBehaviour
 
     void Update()
     {
+        if (caminando) return;
+
         // OBTENER CUBO ACTUAL (DEBAJO DEL JUGADOR)
         RayCastAbajo();
 
@@ -50,6 +52,7 @@ public class ControladorJugador : MonoBehaviour
         // CLIC EN CUBO
         if (Input.GetMouseButtonDown(0) && Time.time - tiempoUltimoClick >= cooldownTiempo)
         {
+
             tiempoUltimoClick = Time.time;
             Ray rayoMouse = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit golpeMouse;
@@ -97,6 +100,8 @@ public class ControladorJugador : MonoBehaviour
 
             ExplorarCubo(proximosCubos, cubosPasados);  // Explora los cubos siguientes.
             ConstruirCamino();  // Construye el camino final.
+
+            cuboActual = caminoFinal[0];
         }
     }
 
@@ -131,9 +136,11 @@ public class ControladorJugador : MonoBehaviour
     void ConstruirCamino()
     {
         Transform cubo = cuboSeleccionado;
+
         while (cubo != cuboActual)
         {
             caminoFinal.Add(cubo);  // Añade el cubo al camino final.
+
             if (cubo.GetComponent<Caminable>().bloqueAnterior != null)
                 cubo = cubo.GetComponent<Caminable>().bloqueAnterior;
             else
@@ -181,15 +188,15 @@ public class ControladorJugador : MonoBehaviour
     public void RayCastAbajo()
     {
         Ray rayoJugador = new Ray(transform.GetChild(0).position, -transform.up);
-        RaycastHit golpeJugador;
 
         // Raycast para detectar el cubo actual bajo el jugador.
-        if (Physics.Raycast(rayoJugador, out golpeJugador))
+
+        RaycastHit[] colliders = Physics.RaycastAll(rayoJugador);
+        foreach (var collider in colliders)
         {
-            Caminable caminable = golpeJugador.transform.GetComponent<Caminable>();
-            if (caminable != null)
+            if (collider.transform.TryGetComponent(out Caminable caminable))
             {
-                cuboActual = golpeJugador.transform;
+                //cuboActual = caminable.transform;
 
                 if (caminable.esEscalera)
                 {
@@ -199,11 +206,13 @@ public class ControladorJugador : MonoBehaviour
                 {
                     DOVirtual.Float(ObtenerMezcla(), 0, .1f, EstablecerMezcla);
                 }
+
+                return;
             }
-            else
-            {
-                Debug.LogError("El objeto golpeado no tiene un componente Caminable.");
-            }
+            //else
+            //{
+            //    Debug.LogError("El objeto golpeado no tiene un componente Caminable.");
+            //}
         }
     }
 
@@ -230,7 +239,7 @@ public class ControladorJugador : MonoBehaviour
             return; // Salir de la función si el Animator no se encuentra
         }
 
-        animator.SetFloat("Mezcla", x);
+        //animator.SetFloat("Mezcla", x);
     }
 
     private void OnDrawGizmos()

@@ -32,8 +32,8 @@ public class GestorJuego : MonoBehaviour
                     contador++;
                 }
             }
-            foreach (CaminoUnico cu in cc.caminos)
-                cu.bloque.caminosPosibles[cu.indice].activo = (contador == cc.condiciones.Count);
+            //foreach (CaminoUnico cu in cc.caminos)
+            //    cu.bloque.caminosPosibles[cu.indice].activo = (contador == cc.condiciones.Count);
         }
 
         if (jugador.caminando)
