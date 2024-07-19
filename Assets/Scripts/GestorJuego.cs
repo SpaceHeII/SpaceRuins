@@ -60,7 +60,7 @@ public class GestorJuego : MonoBehaviour
             float rotationAngle = 90f;
 
             // Realiza la rotación del objeto.
-            objetoParaRotar.DORotate(objetoParaRotar.eulerAngles + rotationAngle * rotationAxis, 0.6f, RotateMode.WorldAxisAdd).SetEase(Ease.OutBack);
+            objetoParaRotar.DORotate(objetoParaRotar.eulerAngles + rotationAngle * rotationAxis, 0.6f, RotateMode.FastBeyond360).SetEase(Ease.OutBack);
 
             rotando = false;
         }
