@@ -1,58 +1,80 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
 using DG.Tweening;
+using System.Linq;
 
 [SelectionBase]
 public class ControladorJugador : MonoBehaviour
 {
     public bool caminando = false;
-    public float velocidad = 1.0f; // Velocidad ajustable del jugador.
-    public float cooldownTiempo = 0.5f; // Cooldown ajustable para el click izquierdo.
+    public float velocidad = 1.0f;
+    public float cooldownTiempo = 0.5f;
     private float tiempoUltimoClick = 0f;
+    public float mezcla;
 
     [Space]
-    public Transform cuboActual;  // Asegúrate de asignar este Transform en el inspector.
+    public Transform cuboActual;
     public Transform cuboSeleccionado;
     public Transform indicador;
+
+    public GestorJuego gestorJuego;
 
     [Space]
     public List<Transform> caminoFinal = new List<Transform>();
 
-    private float mezcla;
-
     void Start()
     {
-        // Verificar si cuboActual está asignado
         if (cuboActual == null)
         {
             Debug.LogError("cuboActual no está asignado en el inspector.");
         }
 
         RayCastAbajo();
+
+        if (cuboActual != null && !cuboActual.GetComponent<Caminable>().noRotar)
+        {
+            Quaternion rotacionDeseada = cuboActual.GetComponent<Caminable>().ObtenerRotacionDeseada();
+            transform.rotation = rotacionDeseada;
+        }
+    }
+
+    public void PresionarBoton(string nombreBoton)
+    {
+        if (GestorJuego.instancia != null)
+        {
+            GestorJuego.instancia.EjecutarMovimientos(nombreBoton, velocidad);
+        }
+        else
+        {
+            Debug.LogError("Instancia de GestorJuego no encontrada.");
+        }
+    }
+
+    public void LlamarEjecutarMovimientos(int indiceBoton)
+    {
+        Sequence s = DOTween.Sequence();
+        s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.white, "_Color", .1f));
+        s.AppendCallback(() => PresionarBoton(indiceBoton.ToString()));
     }
 
     void Update()
     {
         if (caminando) return;
 
-        // OBTENER CUBO ACTUAL (DEBAJO DEL JUGADOR)
         RayCastAbajo();
 
         if (cuboActual != null && cuboActual.GetComponent<Caminable>().sueloMovil)
         {
-            transform.parent = cuboActual.parent;
+            transform.parent = cuboActual;
         }
         else
         {
             transform.parent = null;
         }
 
-        // CLIC EN CUBO
         if (Input.GetMouseButtonDown(0) && Time.time - tiempoUltimoClick >= cooldownTiempo)
         {
-
             tiempoUltimoClick = Time.time;
             Ray rayoMouse = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit golpeMouse;
@@ -62,16 +84,14 @@ public class ControladorJugador : MonoBehaviour
                 if (golpeMouse.transform.GetComponent<Caminable>() != null)
                 {
                     cuboSeleccionado = golpeMouse.transform;
-                    DOTween.Kill(gameObject.transform); // Cancela cualquier animación en curso
+                    DOTween.Kill(gameObject.transform);
                     caminoFinal.Clear();
                     EncontrarCamino();
-
-                    mezcla = transform.position.y - cuboSeleccionado.position.y > 0 ? -1 : 1;
 
                     indicador.position = golpeMouse.transform.GetComponent<Caminable>().ObtenerPuntoCaminable();
                     Sequence s = DOTween.Sequence();
                     s.AppendCallback(() => indicador.GetComponentInChildren<ParticleSystem>().Play());
-                    s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.white, .1f));
+                    s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.white, "_Color", .1f));
                     s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.black, .3f).SetDelay(.2f));
                     s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.clear, .3f));
                 }
@@ -84,7 +104,6 @@ public class ControladorJugador : MonoBehaviour
         List<Transform> proximosCubos = new List<Transform>();
         List<Transform> cubosPasados = new List<Transform>();
 
-        // Añade los caminos posibles desde el cubo actual.
         if (cuboActual != null)
         {
             foreach (Camino camino in cuboActual.GetComponent<Caminable>().caminosPosibles)
@@ -98,8 +117,8 @@ public class ControladorJugador : MonoBehaviour
 
             cubosPasados.Add(cuboActual);
 
-            ExplorarCubo(proximosCubos, cubosPasados);  // Explora los cubos siguientes.
-            ConstruirCamino();  // Construye el camino final.
+            ExplorarCubo(proximosCubos, cubosPasados);
+            ConstruirCamino();
 
             cuboActual = caminoFinal[0];
         }
@@ -115,7 +134,6 @@ public class ControladorJugador : MonoBehaviour
             return;
         }
 
-        // Añade caminos posibles desde el cubo actual.
         foreach (Camino camino in actual.GetComponent<Caminable>().caminosPosibles)
         {
             if (!cubosVisitados.Contains(camino.objetivo) && camino.activo)
@@ -139,7 +157,7 @@ public class ControladorJugador : MonoBehaviour
 
         while (cubo != cuboActual)
         {
-            caminoFinal.Add(cubo);  // Añade el cubo al camino final.
+            caminoFinal.Add(cubo);
 
             if (cubo.GetComponent<Caminable>().bloqueAnterior != null)
                 cubo = cubo.GetComponent<Caminable>().bloqueAnterior;
@@ -148,7 +166,7 @@ public class ControladorJugador : MonoBehaviour
         }
 
         caminoFinal.Insert(0, cuboSeleccionado);
-        SeguirCamino();  // Sigue el camino final.
+        SeguirCamino();
     }
 
     void SeguirCamino()
@@ -156,23 +174,22 @@ public class ControladorJugador : MonoBehaviour
         Sequence s = DOTween.Sequence();
         caminando = true;
 
-        // Anima el movimiento del jugador a través del camino final.
         for (int i = caminoFinal.Count - 1; i > 0; i--)
         {
             float tiempo = caminoFinal[i].GetComponent<Caminable>().esEscalera ? 1.5f : 1;
-            s.Append(transform.DOMove(caminoFinal[i].GetComponent<Caminable>().ObtenerPuntoCaminable(), .2f * tiempo / velocidad).SetEase(Ease.Linear));
-
-            if (!caminoFinal[i].GetComponent<Caminable>().noRotar)
-                s.Join(transform.DOLookAt(caminoFinal[i].position, .1f, AxisConstraint.Y, Vector3.up));
+            Vector3 posicionObjetivo = caminoFinal[i].GetComponent<Caminable>().ObtenerPuntoCaminable();
+            Quaternion rotacionObjetivo = caminoFinal[i].GetComponent<Caminable>().ObtenerRotacionDeseada();
+            s.Append(transform.DOMove(posicionObjetivo, .2f * tiempo / velocidad).SetEase(Ease.Linear));
+            s.Join(transform.DORotateQuaternion(rotacionObjetivo, .2f * tiempo / velocidad)); // Ajusta la rotación del jugador
         }
 
-        // Si el cubo seleccionado es un botón, ejecuta una acción.
         if (cuboSeleccionado.GetComponent<Caminable>().esBoton)
         {
-            s.AppendCallback(() => GestorJuego.instancia.RotarPivoteDerecho());
+            string nombreBoton = cuboSeleccionado.GetComponent<Caminable>().nombreBoton;
+            s.AppendCallback(() => PresionarBoton(nombreBoton));
         }
 
-        s.AppendCallback(() => Limpiar());  // Limpia las referencias después de completar el movimiento.
+        s.AppendCallback(() => Limpiar());
     }
 
     void Limpiar()
@@ -189,18 +206,14 @@ public class ControladorJugador : MonoBehaviour
     {
         Ray rayoJugador = new Ray(transform.GetChild(0).position, -transform.up);
 
-        // Raycast para detectar el cubo actual bajo el jugador.
-
         RaycastHit[] colliders = Physics.RaycastAll(rayoJugador);
         foreach (var collider in colliders)
         {
             if (collider.transform.TryGetComponent(out Caminable caminable))
             {
-                //cuboActual = caminable.transform;
-
                 if (caminable.esEscalera)
                 {
-                    DOVirtual.Float(ObtenerMezcla(), mezcla, .1f, EstablecerMezcla);
+                    DOVirtual.Float(ObtenerMezcla(), -1f, .1f, EstablecerMezcla);
                 }
                 else
                 {
@@ -209,43 +222,35 @@ public class ControladorJugador : MonoBehaviour
 
                 return;
             }
-            //else
-            //{
-            //    Debug.LogError("El objeto golpeado no tiene un componente Caminable.");
-            //}
         }
     }
 
     float ObtenerMezcla()
     {
-        // Verificar si el Animator está asignado
         Animator animator = GetComponentInChildren<Animator>();
         if (animator == null)
         {
             Debug.LogError("Animator no encontrado en el objeto o en sus hijos.");
-            return 0; // Devuelve un valor predeterminado si el Animator no se encuentra
+            return 0;
         }
-
-        return animator.GetFloat("Mezcla");
+        return animator.GetFloat("mezcla");
     }
 
     void EstablecerMezcla(float x)
     {
-        // Verificar si el Animator está asignado
         Animator animator = GetComponentInChildren<Animator>();
         if (animator == null)
         {
             Debug.LogError("Animator no encontrado en el objeto o en sus hijos.");
-            return; // Salir de la función si el Animator no se encuentra
+            return;
         }
-
-        //animator.SetFloat("Mezcla", x);
+        animator.SetFloat("mezcla", x);
     }
 
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.blue;
         Ray rayo = new Ray(transform.GetChild(0).position, -transform.up);
-        Gizmos.DrawRay(rayo);  // Dibuja el rayo en la vista del editor.
+        Gizmos.DrawRay(rayo);
     }
 }

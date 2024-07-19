@@ -11,40 +11,58 @@ public class GestorJuego : MonoBehaviour
     public ControladorJugador jugador;  // Referencia al ControladorJugador.
     public List<CondicionCamino> condicionesCaminos = new List<CondicionCamino>();  // Lista de condiciones de caminos.
     public List<Transform> pivotes;  // Lista de pivotes para rotar elementos del nivel.
+    public List<BotonMovimiento> botonesMovimiento = new List<BotonMovimiento>();  // Lista de botones y sus movimientos asociados.
+    private Dictionary<string, BotonMovimiento> botonesDict = new Dictionary<string, BotonMovimiento>();
+
+    public Transform objetoParaRotar;  // Objeto que se puede rotar con el mouse.
+    public bool rotacionVertical = false;  // Determina si la rotación es vertical u horizontal.
 
     public Transform[] objetosParaOcultar;  // Array de objetos que se ocultan al rotar los pivotes.
+
+    private bool rotando = false;
 
     private void Awake()
     {
         instancia = this;  // Inicializa la instancia singleton.
+        foreach (BotonMovimiento boton in botonesMovimiento)
+        {
+            botonesDict[boton.nombreBoton] = boton;
+        }
     }
 
     void Update()
     {
         // Comprueba condiciones de caminos y activa/desactiva caminos según corresponda.
-        foreach (CondicionCamino cc in condicionesCaminos)
-        {
-            int contador = 0;
-            for (int i = 0; i < cc.condiciones.Count; i++)
-            {
-                if (cc.condiciones[i].objetoCondicion.eulerAngles == cc.condiciones[i].anguloEuler)
-                {
-                    contador++;
-                }
-            }
-            //foreach (CaminoUnico cu in cc.caminos)
-            //    cu.bloque.caminosPosibles[cu.indice].activo = (contador == cc.condiciones.Count);
-        }
+        VerificarCondicionesCaminos();
 
         if (jugador.caminando)
             return;
 
-        // Gestiona la rotación de pivotes con las teclas de flecha.
-        if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
+        // Gestión de rotación del objeto con el mouse.
+        if (Input.GetMouseButtonDown(0) && objetoParaRotar != null)
         {
-            int multiplicador = Input.GetKey(KeyCode.RightArrow) ? 1 : -1;
-            pivotes[0].DOComplete();
-            pivotes[0].DORotate(new Vector3(0, 90 * multiplicador, 0), .6f, RotateMode.WorldAxisAdd).SetEase(Ease.OutBack);
+            // Inicia la rotación cuando el mouse se presiona sobre el objeto.
+            RaycastHit hit;
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(ray, out hit))
+            {
+                if (hit.transform == objetoParaRotar)
+                {
+                    rotando = true;
+                }
+            }
+        }
+
+        if (Input.GetMouseButtonUp(0) && rotando)
+        {
+            // Determina el ángulo de rotación basado en la configuración.
+            Vector3 rotationAxis = rotacionVertical ? Vector3.right : Vector3.up;
+            float rotationAngle = 90f;
+
+            // Realiza la rotación del objeto.
+            objetoParaRotar.DORotate(objetoParaRotar.eulerAngles + rotationAngle * rotationAxis, 0.6f, RotateMode.WorldAxisAdd).SetEase(Ease.OutBack);
+
+            rotando = false;
         }
 
         // Oculta o muestra objetos en función del ángulo del pivote.
@@ -60,10 +78,44 @@ public class GestorJuego : MonoBehaviour
         }
     }
 
-    public void RotarPivoteDerecho()
+    public void EjecutarMovimientos(string nombreBoton, float velocidad)
     {
-        pivotes[1].DOComplete();
-        pivotes[1].DORotate(new Vector3(0, 0, 90), .6f).SetEase(Ease.OutBack);  // Rota el pivote derecho.
+        if (botonesDict.ContainsKey(nombreBoton))
+        {
+            botonesDict[nombreBoton].EjecutarMovimientos(velocidad);
+        }
+        else
+        {
+            Debug.LogWarning("Botón '" + nombreBoton + "' no encontrado en la lista de botones.");
+        }
+    }
+
+    private void VerificarCondicionesCaminos()
+    {
+        foreach (CondicionCamino cc in condicionesCaminos)
+        {
+            int contador = 0;
+            foreach (Condicion condicion in cc.condiciones)
+            {
+                if (condicion.objetoCondicion.eulerAngles == condicion.anguloEuler || condicion.objetoCondicion.position == condicion.posicionObjetivo)
+                {
+                    contador++;
+                }
+            }
+
+            if (contador == cc.condiciones.Count)
+            {
+                ActivarCamino(cc);
+            }
+        }
+    }
+
+    private void ActivarCamino(CondicionCamino condicionCamino)
+    {
+        foreach (CaminoUnico camino in condicionCamino.caminos)
+        {
+            camino.bloque.ActivarCamino(camino.indice);
+        }
     }
 }
 
@@ -80,6 +132,7 @@ public class Condicion
 {
     public Transform objetoCondicion;  // Objeto que debe cumplir la condición.
     public Vector3 anguloEuler;  // Ángulo Euler que debe alcanzar el objeto.
+    public Vector3 posicionObjetivo;  // Posición que debe alcanzar el objeto.
 }
 
 [System.Serializable]
@@ -87,4 +140,20 @@ public class CaminoUnico
 {
     public Caminable bloque;  // Bloque caminable asociado.
     public int indice;  // Índice del camino en la lista de caminos del bloque.
+}
+
+[System.Serializable]
+public class BotonMovimiento
+{
+    public string nombreBoton;  // Nombre del botón.
+    public List<MovimientoBloque> movimientos;  // Movimientos de bloques asociados a este botón.
+
+    public void EjecutarMovimientos(float velocidad)
+    {
+        foreach (MovimientoBloque movimiento in movimientos)
+        {
+            movimiento.velocidadMovimiento = velocidad;  // Asigna la velocidad al movimiento del bloque
+            movimiento.MoverBloque();  // Ejecuta el movimiento del bloque con la velocidad especificada
+        }
+    }
 }

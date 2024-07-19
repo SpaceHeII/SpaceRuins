@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Caminable : MonoBehaviour
 {
+    public string nombreBoton;
     public List<Camino> caminosPosibles = new List<Camino>();
 
     [Space]
@@ -21,16 +22,46 @@ public class Caminable : MonoBehaviour
     public float offsetPuntoCaminable = .5f;
     public float offsetEscalera = .4f;
     public Transform punto;
+
     public Vector3 ObtenerPuntoCaminable()
     {
         float escalera = esEscalera ? offsetEscalera : 0;
-        // Colocar el punto en el centro de la cara superior del cubo
+        // Obtener la posición del punto caminable sin aplicar la rotación del cubo
         Vector3 puntoCaminable = transform.position + Vector3.up * (transform.localScale.y / 2 + offsetPuntoCaminable) - Vector3.up * escalera;
-        if(punto)
+
+        if (punto)
         {
             puntoCaminable = punto.position;
         }
         return puntoCaminable;
+    }
+
+    public Quaternion ObtenerRotacionDeseada()
+    {
+        if (noRotar)
+        {
+            return Quaternion.identity; // No hay rotación deseada
+        }
+        else
+        {
+            // Obtener la rotación del cubo
+            Quaternion rotacionCubo = transform.rotation;
+            return rotacionCubo;
+        }
+    }
+
+    public void ActivarCamino(int indice)
+    {
+        if (indice >= 0 && indice < caminosPosibles.Count)
+        {
+            caminosPosibles[indice].activo = true;
+            // Lógica para habilitar el camino (puede ser hacer visible el camino, habilitar colisión, etc.)
+            caminosPosibles[indice].objetivo.gameObject.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("Índice de camino fuera de rango: " + indice);
+        }
     }
 
     private void OnDrawGizmos()
