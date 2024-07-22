@@ -23,6 +23,16 @@ public class ControladorJugador : MonoBehaviour
     [Space]
     public List<Transform> caminoFinal = new List<Transform>();
 
+    [Space]
+    public AudioClip sonidoCaminar; // Sonido de caminar.
+    private AudioSource audioSource; // AudioSource para reproducir el sonido.
+    public float velocidadSonido = 1.0f; // Velocidad del sonido de caminar.
+
+    [Space]
+    public Color colorOriginalBoton = Color.gray; // Color original del botón.
+    public Color colorActivacionBoton = Color.yellow; // Color de activación del botón.
+    public float duracionCambioColor = 0.5f; // Duración de la animación de cambio de color.
+
     void Start()
     {
         if (cuboActual == null)
@@ -37,12 +47,33 @@ public class ControladorJugador : MonoBehaviour
             Quaternion rotacionDeseada = cuboActual.GetComponent<Caminable>().ObtenerRotacionDeseada();
             transform.rotation = rotacionDeseada;
         }
+
+        // Inicializa el AudioSource.
+        audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.clip = sonidoCaminar;
+        audioSource.loop = true; // Hace que el sonido se reproduzca en bucle.
+        audioSource.pitch = velocidadSonido; // Ajusta la velocidad del sonido.
     }
 
     public void PresionarBoton(string nombreBoton)
     {
         if (GestorJuego.instancia != null)
         {
+            // Encuentra el botón por su nombre y cambia su color.
+            var boton = GameObject.Find(nombreBoton);
+            if (boton != null)
+            {
+                Renderer renderer = boton.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    // Cambia el color del botón.
+                    renderer.material.DOColor(colorActivacionBoton, duracionCambioColor).OnComplete(() =>
+                    {
+                        renderer.material.DOColor(colorOriginalBoton, duracionCambioColor);
+                    });
+                }
+            }
+
             GestorJuego.instancia.EjecutarMovimientos(nombreBoton, velocidad);
         }
         else
@@ -96,6 +127,16 @@ public class ControladorJugador : MonoBehaviour
                     s.Append(indicador.GetComponent<Renderer>().material.DOColor(Color.clear, .3f));
                 }
             }
+        }
+
+        // Controla la reproducción del sonido de caminar.
+        if (caminando && !audioSource.isPlaying)
+        {
+            audioSource.Play();
+        }
+        else if (!caminando && audioSource.isPlaying)
+        {
+            audioSource.Stop();
         }
     }
 

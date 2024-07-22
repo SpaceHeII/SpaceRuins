@@ -25,6 +25,9 @@ public class RotateCamera : MonoBehaviour
     // Posición inicial de la cámara
     private Vector3 posicionInicial;
 
+    // Velocidad de ajuste de altura con la rueda del ratón
+    public float velocidadAjusteAltura = 1f;
+
     void Start()
     {
         // Guardar la rotación inicial de la cámara
@@ -55,6 +58,13 @@ public class RotateCamera : MonoBehaviour
         {
             Vector3 nuevaPosicion = new Vector3(posicionInicial.x, jugador.position.y + alturaOffset, posicionInicial.z);
             transform.position = nuevaPosicion;
+        }
+
+        // Ajustar la altura de la cámara con la rueda del ratón
+        float rueda = Input.GetAxis("Mouse ScrollWheel");
+        if (rueda != 0f)
+        {
+            alturaOffset += rueda * velocidadAjusteAltura;
         }
     }
 }
